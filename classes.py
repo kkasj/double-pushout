@@ -12,6 +12,21 @@ class GraphManager:
         self.elements = []
     
     @classmethod
+    def from_elements(cls, elements):
+        manager = cls()
+        manager.elements = elements
+
+        manager.graph = nx.Graph()
+        for element in elements:
+            if 'source' in element['data']:
+                manager.graph.add_edge(element['data']['source'], element['data']['target'], id=element['data']['id'])
+            else:
+                manager.graph.add_node(element['data']['id'])
+
+        return manager
+
+    
+    @classmethod
     def from_dict(cls, data):
         """Create a GraphManager instance from a dictionary.
         
@@ -287,6 +302,3 @@ class RuleManager:
                 element['classes'] = 'k-element'
             else:
                 element['classes'] = ''
-
-# Initialize managers
-main_graph = GraphManager()

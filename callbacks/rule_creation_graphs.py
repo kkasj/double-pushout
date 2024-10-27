@@ -1,14 +1,7 @@
 import dash
-from dash import html, dcc
-import dash_cytoscape as cyto
 from dash.dependencies import Input, Output, State, ALL
-import networkx as nx
-import json
-import uuid
 
-from classes import GraphManager, RuleManager, main_graph
-from layout import create_layout
-from utils import match_subgraph
+from classes import GraphManager, RuleManager
 
 def register_rule_creation_graphs_callbacks(app):
     @app.callback(

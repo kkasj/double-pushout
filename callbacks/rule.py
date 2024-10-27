@@ -7,9 +7,8 @@ import networkx as nx
 import json
 import uuid
 
-from classes import GraphManager, RuleManager, main_graph
-from layout import create_layout
-from utils import match_subgraph
+from classes import GraphManager, RuleManager
+from dpo import match_subgraph, apply_dpo_rule, apply_rule_parallel
 
 def register_rule_callbacks(app):
     @app.callback(
@@ -68,30 +67,29 @@ def register_rule_callbacks(app):
 
     @app.callback(
         Output('main-graph', 'elements', allow_duplicate=True),
-        Input('apply-rule-button', 'n_clicks'),
+        Input('apply-rules-button', 'n_clicks'),
         State('main-graph', 'elements'),
         State('main-graph', 'selectedNodeData'),
         State('main-graph', 'selectedEdgeData'),
         State('rules-store', 'data'),
         prevent_initial_call=True
     )
-    def apply_rule(n_clicks, elements, selected_nodes, selected_edges, rules):
-        print("apply_rule callback triggered")
+    def apply_rules(n_clicks, elements, selected_nodes, selected_edges, rules):
+        print("apply_rules callback triggered")
         if n_clicks > 0 and rules:
-            # For simplicity, we'll apply the last created rule
-            rule = rules[-1]
-            
-            # Check if the selected subgraph matches the LHS
-            if match_subgraph(selected_nodes, selected_edges, rule['lhs']):
-                # Remove elements not in K
-                elements = [e for e in elements if e['data']['id'] in rule['k']['nodes'] or 
-                            (e['data'].get('source') and f"{e['data']['source']}-{e['data']['target']}" in rule['k']['edges'])]
-                
-                # Add elements from RHS
-                for element in rule['rhs']:
-                    if element not in elements:
-                        elements.append(element)
-        
+            for rule in rules:
+                rule_manager = RuleManager.from_dict(rule)
+                host_graph_manager = GraphManager.from_elements(elements)
+
+                # Find all matches of LHS in the host graph
+                successful_applications = apply_rule_parallel(host_graph_manager, rule_manager)
+
+                if successful_applications > 0:
+                    print(f"Rule applied successfully {successful_applications} times")
+                    return host_graph_manager.elements
+                else:
+                    print(f"No applicable match found for rule {rule_manager.id}")
+
         return elements
 
     @app.callback(

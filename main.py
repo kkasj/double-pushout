@@ -1,12 +1,5 @@
 import dash
-from dash import html, dcc
-import dash_cytoscape as cyto
-from dash.dependencies import Input, Output, State, ALL
-import networkx as nx
-import json
-import uuid
 
-from classes import GraphManager, RuleManager, main_graph
 from layout import create_layout
 from callbacks.main_graph import register_main_graph_callbacks
 from callbacks.rule import register_rule_callbacks

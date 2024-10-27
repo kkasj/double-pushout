@@ -18,7 +18,7 @@ def create_layout():
         html.Div([
             html.Button('Create New Rule', id='create-new-rule-button', n_clicks=0),
             html.Button('Finalize Rule', id='finalize-rule-button', n_clicks=0),
-            html.Button('Apply Rule', id='apply-rule-button', n_clicks=0),
+            html.Button('Apply Rules', id='apply-rules-button', n_clicks=0),
         ], style={'textAlign': 'center', 'marginTop': '10px', 'marginBottom': '10px'}),
         html.Div(id='click-data'),
         html.Div(id='selected-data'),
