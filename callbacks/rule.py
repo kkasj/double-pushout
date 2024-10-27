@@ -3,6 +3,7 @@ import dash
 from dash import html, dcc
 import dash_cytoscape as cyto
 from dash.dependencies import Input, Output, State, ALL
+from copy import deepcopy
 import networkx as nx
 import json
 import uuid
@@ -13,7 +14,8 @@ from dpo import match_subgraph, apply_dpo_rule, apply_rule_parallel
 def register_rule_callbacks(app):
     @app.callback(
         [Output('rules-store', 'data', allow_duplicate=True),
-        Output('rule-list', 'children', allow_duplicate=True)],
+        Output('rule-list', 'children', allow_duplicate=True),
+        Output('current-rule', 'data', allow_duplicate=True)],
         Input('finalize-rule-button', 'n_clicks'),
         [State('rules-store', 'data'),
         State('current-rule', 'data'),
@@ -23,19 +25,35 @@ def register_rule_callbacks(app):
     def finalize_rule(n_clicks, rules, current_rule_data, rule_list_children):
         print("finalize_rule callback triggered")
         if n_clicks > 0:
-            rules.append(current_rule_data)
-            # Create new rule button with consistent styling
-            new_rule_button = html.Button(
-                f"Rule {len(rules)}", 
-                id={'type': 'rule-button', 'index': current_rule_data['id']},
-                style={'margin': '5px', 'padding': '5px 10px'}
-            )
+            current_rule_data_copy = deepcopy(current_rule_data)
+            rules.append(current_rule_data_copy)
+            # Create container div for rule buttons
+            rule_container = html.Div([
+                html.Button(
+                    f"Rule {len(rules)}", 
+                    id={'type': 'rule-button', 'index': current_rule_data_copy['id']},
+                    style={'margin': '5px', 'padding': '5px 10px'}
+                ),
+                html.Button(
+                    "✕",  # Using "✕" as delete symbol
+                    id={'type': 'remove-rule-button', 'index': current_rule_data_copy['id']},
+                    style={
+                        'margin': '5px',
+                        'padding': '5px 10px',
+                        'backgroundColor': '#ff4444',
+                        'color': 'white',
+                        'border': 'none',
+                        'borderRadius': '3px'
+                    }
+                )
+            ], style={'display': 'inline-block'})
             
             # Initialize or append to rule list
-            rule_list_children = (rule_list_children or []) + [new_rule_button]
-            return rules, rule_list_children
+            rule_list_children = (rule_list_children or []) + [rule_container]
+            current_rule_data['id'] = str(uuid.uuid4())
+            return rules, rule_list_children, current_rule_data
         
-        return dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update
 
     @app.callback(
         [Output('current-rule', 'data', allow_duplicate=True),
@@ -123,4 +141,34 @@ def register_rule_callbacks(app):
             return current_rule.to_dict()
         return dash.no_update
     
+
+    @app.callback(
+        [Output('rules-store', 'data', allow_duplicate=True),
+        Output('rule-list', 'children', allow_duplicate=True)],
+        Input({'type': 'remove-rule-button', 'index': ALL}, 'n_clicks'),
+        [State('rules-store', 'data'),
+        State('rule-list', 'children')],
+        prevent_initial_call=True
+    )
+    def remove_rule(n_clicks_list, rules, rule_list_children):
+        ctx = dash.callback_context
+        if not ctx.triggered or not any(n_clicks_list):
+            return dash.no_update, dash.no_update
+
+        button_id = json.loads(ctx.triggered[0]['prop_id'].split('.')[0])
+        rule_id = button_id['index']
+
+        # Remove rule from rules store
+        updated_rules = [rule for rule in rules if rule['id'] != rule_id]
+        
+        # Remove rule from rule list
+        updated_rule_list = [
+            child for child in rule_list_children 
+            if not (isinstance(child, dict) and 
+                   child.get('props', {}).get('children', []) and 
+                   any(btn.get('props', {}).get('id', {}).get('index') == rule_id 
+                       for btn in child['props']['children']))
+        ]
+
+        return updated_rules, updated_rule_list
     
