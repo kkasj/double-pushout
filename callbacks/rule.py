@@ -87,20 +87,26 @@ def register_rule_callbacks(app):
         Output('main-graph', 'elements', allow_duplicate=True),
         Input('apply-rules-button', 'n_clicks'),
         State('main-graph', 'elements'),
-        State('main-graph', 'selectedNodeData'),
-        State('main-graph', 'selectedEdgeData'),
         State('rules-store', 'data'),
         prevent_initial_call=True
     )
-    def apply_rules(n_clicks, elements, selected_nodes, selected_edges, rules):
+    def apply_rules(n_clicks, elements, rules):
         print("apply_rules callback triggered")
         if n_clicks > 0 and rules:
             for rule in rules:
                 rule_manager = RuleManager.from_dict(rule)
                 host_graph_manager = GraphManager.from_elements(elements)
 
+                print("Host graph nodes:")
+                print(host_graph_manager.graph.nodes())
+                print(host_graph_manager.graph.edges())
+
                 # Find all matches of LHS in the host graph
                 successful_applications = apply_rule_parallel(host_graph_manager, rule_manager)
+
+                print("Host graph nodes after rule application:")
+                print(host_graph_manager.graph.nodes())
+                print(host_graph_manager.graph.edges())
 
                 if successful_applications > 0:
                     print(f"Rule applied successfully {successful_applications} times")
@@ -114,11 +120,10 @@ def register_rule_callbacks(app):
         Output('current-rule', 'data', allow_duplicate=True),
         Input('create-new-rule-button', 'n_clicks'),
         [State('main-graph', 'selectedNodeData'),
-        State('main-graph', 'selectedEdgeData'),
-        State('current-rule', 'data')],
+        State('main-graph', 'selectedEdgeData')],
         prevent_initial_call=True
     )
-    def initialize_new_rule(n_clicks, selected_nodes, selected_edges, current_rule_data):
+    def initialize_new_rule(n_clicks, selected_nodes, selected_edges):
         print("initialize_new_rule callback triggered")
         if n_clicks > 0:
             current_rule = RuleManager.initialize_from_selection(selected_nodes, selected_edges)
@@ -137,6 +142,16 @@ def register_rule_callbacks(app):
         print("select_k callback triggered")
         if n_clicks > 0:
             current_rule = RuleManager.from_dict(current_rule_data)
+            print("Current rule LHS nodes:")
+            print(current_rule.lhs.graph.nodes())
+            print(current_rule.lhs.graph.edges())
+            print("Current rule RHS nodes:")
+            print(current_rule.rhs.graph.nodes())
+            print(current_rule.rhs.graph.edges())
+            print("Selected nodes:")
+            print(selected_nodes)
+            print("Selected edges:")
+            print(selected_edges)
             current_rule.update_k_elements(selected_nodes, selected_edges)
             return current_rule.to_dict()
         return dash.no_update

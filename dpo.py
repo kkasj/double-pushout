@@ -46,9 +46,6 @@ def apply_dpo_rule(host_graph_manager, rule_manager, match):
         K = rule_manager.k.graph
         R = rule_manager.rhs.graph
 
-        # Create inverse match mapping
-        inverse_match = {v: k for k, v in match.items()}
-
         # 1. Check gluing condition
         # Identify nodes that would be dangling
         nodes_to_remove = set(n for n in L.nodes() if n not in K.nodes())

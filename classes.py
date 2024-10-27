@@ -148,11 +148,12 @@ class GraphManager:
         # Remove edges
         new_node_ids = [e['data']['id'] for e in new_node_elements]
         for e in current_edge_elements:
-            if f"{e['data']['source']}-{e['data']['target']}" not in selected_edge_ids and e['data']['source'] in new_node_ids and e['data']['target'] in new_node_ids:
+            source, target = e['data']['source'], e['data']['target']
+            if f"{source}-{target}" not in selected_edge_ids and f"{target}-{source}" not in selected_edge_ids and source in new_node_ids and target in new_node_ids:
                 new_edge_elements.append(e)
             # Remove edge in the NetworkX graph if it still exists
-            elif (e['data']['source'], e['data']['target']) in self.graph.edges():
-                self.graph.remove_edge(e['data']['source'], e['data']['target'])
+            elif self.graph.has_edge(source, target):
+                self.graph.remove_edge(source, target)
         
         self.elements = new_node_elements + new_edge_elements
 
@@ -268,29 +269,32 @@ class RuleManager:
         # Add selected nodes to K
         if selected_nodes:
             for node in selected_nodes:
-                if node['id'] in self.lhs.graph.nodes and node['id'] in self.rhs.graph.nodes:
-                    self.k.add_node(node['id'], position=node.get('position'))
+                if node['id'] in self.lhs.graph.nodes() and node['id'] in self.rhs.graph.nodes():
+                    self.k.add_node(node['id'])
         
         # Add selected edges to K
         if selected_edges:
             for edge in selected_edges:
                 source, target = edge['source'], edge['target']
-                if (source in self.k.graph.nodes and 
-                    target in self.k.graph.nodes and 
+                if (source in self.k.graph.nodes() and 
+                    target in self.k.graph.nodes() and 
                     self.lhs.graph.has_edge(source, target) and 
                     self.rhs.graph.has_edge(source, target)):
                     self.k.add_edge(source, target)
+        
+        print("K nodes and edges:")
+        print(self.k.graph.nodes())
+        print(self.k.graph.edges())
 
     
     def highlight_k_elements(self):
         """Update the visualization to highlight K elements in both LHS and RHS."""
         k_nodes = set(self.k.graph.nodes())
-        k_edges = set(f"{u}-{v}" for u, v in self.k.graph.edges())
         
         # Update LHS elements
         for element in self.lhs.elements:
             edge_element = 'source' in element['data']
-            if (edge_element and f"{element['data']['source']}-{element['data']['target']}" in k_edges) or (not edge_element and element['data']['id'] in k_nodes):
+            if (edge_element and self.k.graph.has_edge(element['data']['source'], element['data']['target'])) or (not edge_element and element['data']['id'] in k_nodes):
                 element['classes'] = 'k-element'
             else:
                 element['classes'] = ''
@@ -298,7 +302,12 @@ class RuleManager:
         # Update RHS elements
         for element in self.rhs.elements:
             edge_element = 'source' in element['data']
-            if (edge_element and f"{element['data']['source']}-{element['data']['target']}" in k_edges) or (not edge_element and element['data']['id'] in k_nodes):
+            if (edge_element and self.k.graph.has_edge(element['data']['source'], element['data']['target'])) or (not edge_element and element['data']['id'] in k_nodes):
                 element['classes'] = 'k-element'
             else:
                 element['classes'] = ''
+    
+    def reset_rhs_to_lhs(self):
+        """Reset the RHS graph to match the LHS graph."""
+        self.rhs.clear()
+        self.rhs.copy_from(self.lhs.elements)

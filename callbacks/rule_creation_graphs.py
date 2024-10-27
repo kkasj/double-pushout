@@ -2,6 +2,7 @@ import dash
 from dash.dependencies import Input, Output, State, ALL
 
 from classes import GraphManager, RuleManager
+from utils import get_default_graph_layout
 
 def register_rule_creation_graphs_callbacks(app):
     @app.callback(
@@ -89,3 +90,40 @@ def register_rule_creation_graphs_callbacks(app):
             current_rule.rhs.remove_elements(selected_nodes, selected_edges, k_elements)
 
         return current_rule.to_dict()
+    
+    @app.callback(
+        Output('current-rule', 'data', allow_duplicate=True),
+        Input('reset-rhs-to-lhs-button', 'n_clicks'),
+        State('current-rule', 'data'),
+        prevent_initial_call=True
+    )
+    def reset_rhs_to_lhs(n_clicks, current_rule_data):
+        print("reset_rhs_to_lhs callback triggered")
+        if n_clicks > 0:
+            current_rule = RuleManager.from_dict(current_rule_data)
+            current_rule.reset_rhs_to_lhs()
+            return current_rule.to_dict()
+        return dash.no_update
+
+
+    @app.callback(
+        [Output('lhs-graph', 'layout'),
+        Output('rhs-graph', 'layout')],
+        [Input('reset-lhs-view-button', 'n_clicks'),
+        Input('reset-rhs-view-button', 'n_clicks')],
+        prevent_initial_call=True
+    )
+    def reset_rule_graphs_view(n_clicks_lhs, n_clicks_rhs):
+        ctx = dash.callback_context
+        if not ctx.triggered:
+            return dash.no_update, dash.no_update
+        
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+        reset_layout = get_default_graph_layout()
+        
+        if button_id == 'reset-lhs-view-button':
+            return reset_layout, dash.no_update
+        elif button_id == 'reset-rhs-view-button':
+            return dash.no_update, reset_layout
+        
+        return dash.no_update, dash.no_update

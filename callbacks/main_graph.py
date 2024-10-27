@@ -2,6 +2,7 @@ import dash
 from dash.dependencies import Input, Output, State, ALL
 
 from classes import GraphManager
+from utils import get_default_graph_layout
 
 def register_main_graph_callbacks(app):
     @app.callback(
@@ -23,7 +24,7 @@ def register_main_graph_callbacks(app):
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
         
         if button_id == 'add-node-button':
-            node_id = str(len(main_graph.elements) + 1)
+            node_id = str(len([element for element in main_graph.elements if 'source' not in element['data']]) + 1)
             main_graph.add_node(node_id)
         elif button_id == 'add-edge-button':
             if selected_nodes and len(selected_nodes) >= 2:
@@ -35,3 +36,14 @@ def register_main_graph_callbacks(app):
             main_graph.remove_elements(selected_nodes, selected_edges)
         
         return main_graph.elements
+    
+    @app.callback(
+        Output('main-graph', 'layout'),
+        Input('reset-view-button', 'n_clicks'),
+        prevent_initial_call=True
+    )
+    def reset_graph_view(n_clicks):
+        ctx = dash.callback_context
+        if ctx.triggered:
+            return get_default_graph_layout()
+        return dash.no_update
