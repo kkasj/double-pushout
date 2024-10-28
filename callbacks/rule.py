@@ -110,7 +110,7 @@ def register_rule_callbacks(app):
 
                 if successful_applications > 0:
                     print(f"Rule applied successfully {successful_applications} times")
-                    return host_graph_manager.elements
+                    elements = host_graph_manager.elements
                 else:
                     print(f"No applicable match found for rule {rule_manager.id}")
 
