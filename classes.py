@@ -186,6 +186,7 @@ class GraphManager:
 class RuleManager:
     def __init__(self):
         self.id = str(uuid.uuid4())
+        self.index = None
         print(f"Created new RuleManager with id: {self.id}")
         self.lhs = GraphManager()
         self.rhs = GraphManager()
@@ -208,7 +209,7 @@ class RuleManager:
         return rule_manager
 
     def to_dict(self):
-        return {
+        data = {
             'id': self.id,
             'lhs': self.lhs.elements,
             'rhs': self.rhs.elements,
@@ -216,7 +217,10 @@ class RuleManager:
                 'nodes': list(self.k.graph.nodes()),
                 'edges': [f"{u}-{v}" for u, v in self.k.graph.edges()]
             }
-    }
+        }
+        if self.index is not None:
+            data['index'] = self.index
+        return data
         
     @classmethod
     def initialize_from_selection(cls, selected_nodes, selected_edges):

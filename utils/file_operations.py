@@ -1,6 +1,8 @@
 import os
 import json
 from datetime import datetime
+import dash
+from dash import html
 
 def save_rule_to_file(rule_data, rules_dir="saved_rules"):
     """
@@ -21,6 +23,21 @@ def save_rule_to_file(rule_data, rules_dir="saved_rules"):
     # Create directory if it doesn't exist
     if not os.path.exists(rules_dir):
         os.makedirs(rules_dir)
+    
+    # Get current highest index
+    current_index = 0
+    for filename in os.listdir(rules_dir):
+        if filename.endswith('.json'):
+            try:
+                with open(os.path.join(rules_dir, filename), 'r') as f:
+                    file_data = json.load(f)
+                    if 'index' in file_data and file_data['index'] > current_index:
+                        current_index = file_data['index']
+            except:
+                continue
+    
+    # Add index to rule data
+    rule_data['index'] = current_index + 1
     
     # Generate filename using timestamp and rule ID
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -60,6 +77,44 @@ def load_rules_from_directory(rules_dir="saved_rules"):
                 rules.append(rule_data)
     
     return rules
+    
+def load_saved_rules_list():
+    """Load the list of saved rules from the directory."""
+    rules = load_rules_from_directory()
+    print(rules)
+    rule_buttons = []
+    for rule in rules:
+        rule_index = rule.get('index', '?')
+        rule_container = html.Div([
+            html.Button(
+                f"Load Rule {rule_index}",
+                id={'type': 'load-saved-rule-button', 'index': rule['id']},
+                style={
+                    'margin': '5px',
+                    'padding': '5px 10px',
+                    'backgroundColor': '#3498DB',
+                    'color': 'white',
+                    'border': 'none',
+                    'borderRadius': '4px',
+                    'cursor': 'pointer'
+                }
+            ),
+            html.Button(
+                "✕",
+                id={'type': 'delete-saved-rule-button', 'index': rule['id']},
+                style={
+                    'margin': '5px',
+                    'padding': '5px 10px',
+                    'backgroundColor': '#ff4444',
+                    'color': 'white',
+                    'border': 'none',
+                    'borderRadius': '3px',
+                    'cursor': 'pointer'
+                }
+            )
+        ], style={'display': 'block'})
+        rule_buttons.append(rule_container)
+    return rule_buttons
 
 def save_graph_to_file(graph_data, graphs_dir="saved_graphs"):
     """
@@ -109,3 +164,33 @@ def load_graph_from_file(filepath):
     with open(filepath, 'r') as f:
         graph_data = json.load(f)
     return graph_data
+
+def delete_rule_file(rule_id, rules_dir="saved_rules"):
+    """Delete a rule file based on the rule ID."""
+    if not os.path.exists(rules_dir):
+        return False
+        
+    target_file = None
+    # First find the file without opening it
+    for filename in os.listdir(rules_dir):
+        if filename.endswith('.json'):
+            filepath = os.path.join(rules_dir, filename)
+            try:
+                with open(filepath, 'r') as f:
+                    rule_data = json.load(f)
+                    if rule_data['id'] == rule_id:
+                        target_file = filepath
+                        break
+            except Exception:
+                continue
+
+    # If we found the file, try to delete it
+    if target_file:
+        try:
+            os.remove(target_file)
+            return True
+        except Exception as e:
+            print(f"Error deleting file {target_file}: {str(e)}")
+            return False
+            
+    return False

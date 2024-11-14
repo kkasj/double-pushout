@@ -9,7 +9,7 @@ import uuid
 
 from classes import GraphManager, RuleManager
 from dpo import match_subgraph, apply_dpo_rule, apply_rule_parallel
-from utils.file_operations import save_rule_to_file, load_rules_from_directory
+from utils.file_operations import save_rule_to_file, load_rules_from_directory, load_saved_rules_list, delete_rule_file
 
 def register_rule_callbacks(app):
     @app.callback(
@@ -27,10 +27,6 @@ def register_rule_callbacks(app):
         if n_clicks > 0:
             current_rule_data_copy = deepcopy(current_rule_data)
             rules.append(current_rule_data_copy)
-            
-            # Save rule to file
-            filepath = save_rule_to_file(current_rule_data_copy)
-            print(f"Rule saved to: {filepath}")
             
             # Create container div for rule buttons
             rule_container = html.Div([
@@ -88,15 +84,20 @@ def register_rule_callbacks(app):
         return dash.no_update, dash.no_update
 
     @app.callback(
-        Output('main-graph', 'elements', allow_duplicate=True),
+        [Output('main-graph', 'elements', allow_duplicate=True),
+         Output('alert-store', 'data', allow_duplicate=True)],
         Input('apply-rules-button', 'n_clicks'),
-        State('main-graph', 'elements'),
-        State('rules-store', 'data'),
+        [State('main-graph', 'elements'),
+         State('rules-store', 'data')],
         prevent_initial_call=True
     )
     def apply_rules(n_clicks, elements, rules):
         print("apply_rules callback triggered")
-        if n_clicks > 0 and rules:
+        if n_clicks > 0:
+            if not rules:
+                return dash.no_update, "No rules available to apply. Please create and save at least one rule first."
+            
+            total_applications = 0
             for rule in rules:
                 rule_manager = RuleManager.from_dict(rule)
                 host_graph_manager = GraphManager.from_elements(elements)
@@ -107,6 +108,7 @@ def register_rule_callbacks(app):
 
                 # Find all matches of LHS in the host graph
                 successful_applications = apply_rule_parallel(host_graph_manager, rule_manager)
+                total_applications += successful_applications
 
                 print("Host graph nodes after rule application:")
                 print(host_graph_manager.graph.nodes())
@@ -118,7 +120,13 @@ def register_rule_callbacks(app):
                 else:
                     print(f"No applicable match found for rule {rule_manager.id}")
 
-        return elements
+            # Return appropriate alert message based on total applications
+            if total_applications > 0:
+                return elements, {'message': f"Rules applied successfully! Total transformations: {total_applications}", 'type': 'success'}
+            else:
+                return dash.no_update, {'message': "No rules could be applied to the current graph. Check if your rules match any part of the graph.", 'type': 'error'}
+        
+        return dash.no_update, dash.no_update
 
     @app.callback(
         Output('current-rule', 'data', allow_duplicate=True),
@@ -191,3 +199,116 @@ def register_rule_callbacks(app):
 
         return updated_rules, updated_rule_list
     
+    @app.callback(
+        Output('alert-container', 'children', allow_duplicate=True),
+        Input('alert-store', 'data'),
+        prevent_initial_call=True
+    )
+    def display_alert(alert_data):
+        if not alert_data:
+            return None
+        
+        # Handle both string and dict formats for backward compatibility
+        if isinstance(alert_data, str):
+            message = alert_data
+            alert_type = 'error'
+        else:
+            message = alert_data.get('message', '')
+            alert_type = alert_data.get('type', 'error')
+        
+        # Define styles based on alert type
+        base_style = {
+            'padding': '15px',
+            'borderRadius': '4px',
+            'boxShadow': '0 2px 5px rgba(0,0,0,0.2)',
+            'marginBottom': '10px',
+            'textAlign': 'center'
+        }
+        
+        if alert_type == 'success':
+            style = {
+                **base_style,
+                'backgroundColor': '#4CAF50',  # Green background
+                'color': 'white',
+            }
+        else:  # error
+            style = {
+                **base_style,
+                'backgroundColor': '#f44336',  # Red background
+                'color': 'white',
+            }
+        
+        return html.Div(message, style=style)
+
+    @app.callback(
+        [Output('alert-store', 'data', allow_duplicate=True),
+         Output('saved-rules-list', 'children', allow_duplicate=True)],
+        Input('save-rule-button', 'n_clicks'),
+        [State('current-rule', 'data')],
+        prevent_initial_call=True
+    )
+    def save_current_rule(n_clicks, current_rule_data):
+        if n_clicks > 0:
+            try:
+                save_rule_to_file(current_rule_data)
+                return "Rule saved to file successfully!", load_saved_rules_list()
+            except Exception as e:
+                return f"Error saving rule: {str(e)}", dash.no_update
+        return dash.no_update, dash.no_update
+
+    @app.callback(
+        [Output('alert-store', 'data', allow_duplicate=True),
+         Output('saved-rules-list', 'children', allow_duplicate=True)],
+        Input({'type': 'delete-saved-rule-button', 'index': ALL}, 'n_clicks'),
+        prevent_initial_call=True
+    )
+    def delete_saved_rule(n_clicks_list):
+        ctx = dash.callback_context
+        if not ctx.triggered or not any(n_clicks_list):
+            return dash.no_update, dash.no_update
+
+        button_id = json.loads(ctx.triggered[0]['prop_id'].split('.')[0])
+        rule_id = button_id['index']
+        
+        try:
+            if delete_rule_file(rule_id):
+                return "Rule deleted successfully!", load_saved_rules_list()
+            else:
+                return "Error: Rule file not found", dash.no_update
+        except Exception as e:
+            return f"Error deleting rule: {str(e)}", dash.no_update
+    
+    @app.callback(
+        Output('saved-rules-list', 'children'),
+        Input('_refresh', 'children'),
+        prevent_initial_call=False 
+    )
+    def on_page_refresh(refresh_timestamp):
+        return load_saved_rules_list()
+
+    @app.callback(
+        [Output('current-rule', 'data', allow_duplicate=True),
+         Output('rule-creation-area', 'style', allow_duplicate=True)],
+        Input({'type': 'load-saved-rule-button', 'index': ALL}, 'n_clicks'),
+        State('rules-store', 'data'),
+        prevent_initial_call=True
+    )
+    def load_saved_rule(n_clicks_list, rules):
+        ctx = dash.callback_context
+        if not ctx.triggered or not any(n_clicks_list):
+            return dash.no_update, dash.no_update
+
+        button_id = json.loads(ctx.triggered[0]['prop_id'].split('.')[0])
+        rule_id = button_id['index']
+
+        # Load rules from directory
+        saved_rules = load_rules_from_directory()
+        
+        # Find the rule with matching ID
+        for rule in saved_rules:
+            if rule['id'] == rule_id:
+                # Generate new ID for the loaded rule
+                rule['id'] = str(uuid.uuid4())
+                return rule, {'display': 'block'}
+
+        return dash.no_update, dash.no_update

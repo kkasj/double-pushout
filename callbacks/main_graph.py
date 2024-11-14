@@ -42,7 +42,7 @@ def register_main_graph_callbacks(app):
         return main_graph.elements
     
     @app.callback(
-        Output('main-graph', 'layout'),
+        Output('main-graph', 'layout', allow_duplicate=True),
         Input('reset-view-button', 'n_clicks'),
         prevent_initial_call=True
     )
@@ -53,7 +53,7 @@ def register_main_graph_callbacks(app):
         return dash.no_update
     
     @app.callback(
-        Output('save-graph-button', 'n_clicks'),
+        Output('save-graph-button', 'n_clicks', allow_duplicate=True),
         Input('save-graph-button', 'n_clicks'),
         State('main-graph', 'elements'),
         prevent_initial_call=True

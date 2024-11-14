@@ -9,10 +9,7 @@ from callbacks.rule_creation_graphs import register_rule_creation_graphs_callbac
 def create_app():
     app = dash.Dash(__name__)
     
-    # Load existing rules
-    initial_rules = load_rules_from_directory()
-    
-    app.layout = create_layout(initial_rules)
+    app.layout = create_layout()
     
     register_main_graph_callbacks(app)
     register_rule_callbacks(app)

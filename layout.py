@@ -1,10 +1,12 @@
 import dash
 from dash import html, dcc
 import dash_cytoscape as cyto
+from datetime import datetime
 
 from utils.layout import get_default_graph_layout
+from utils.file_operations import load_saved_rules_list
 
-def create_layout(initial_rules=None):
+def create_layout():
     blue = '#87CEEB'
 
     # Define common button styles
@@ -20,30 +22,29 @@ def create_layout(initial_rules=None):
         'transition': 'background-color 0.3s'
     }
 
-    # Create initial rule list children
-    initial_rule_list_children = []
-    if initial_rules:
-        for rule in initial_rules:
-            rule_container = html.Div([
-                html.Button(
-                    f"Rule {len(initial_rule_list_children) + 1}", 
-                    id={'type': 'rule-button', 'index': rule['id']},
-                    style={'margin': '5px', 'padding': '5px 10px'}
-                ),
-                html.Button(
-                    "✕",
-                    id={'type': 'remove-rule-button', 'index': rule['id']},
-                    style={
-                        'margin': '5px',
-                        'padding': '5px 10px',
-                        'backgroundColor': '#ff4444',
-                        'color': 'white',
-                        'border': 'none',
-                        'borderRadius': '3px'
-                    }
-                )
-            ], style={'display': 'inline-block'})
-            initial_rule_list_children.append(rule_container)
+    # # Create initial rule list children initial_rule_list_children = []
+    # if initial_rules:
+    #     for rule in initial_rules:
+    #         rule_container = html.Div([
+    #             html.Button(
+    #                 f"Rule {len(initial_rule_list_children) + 1}", 
+    #                 id={'type': 'rule-button', 'index': rule['id']},
+    #                 style={'margin': '5px', 'padding': '5px 10px'}
+    #             ),
+    #             html.Button(
+    #                 "✕",
+    #                 id={'type': 'remove-rule-button', 'index': rule['id']},
+    #                 style={
+    #                     'margin': '5px',
+    #                     'padding': '5px 10px',
+    #                     'backgroundColor': '#ff4444',
+    #                     'color': 'white',
+    #                     'border': 'none',
+    #                     'borderRadius': '3px'
+    #                 }
+    #             )
+    #         ], style={'display': 'inline-block'})
+    #         initial_rule_list_children.append(rule_container)
 
     # Define container styles
     container_style = {
@@ -105,6 +106,21 @@ def create_layout(initial_rules=None):
 
 
     return html.Div([
+        # Add this store component for alerts
+        dcc.Store(id='alert-store', data=''),
+        
+        # Add this div for displaying alerts
+        html.Div(id='alert-container', style={
+            'position': 'fixed',
+            'top': '20px',
+            'left': '50%',
+            'transform': 'translateX(-50%)',
+            'zIndex': '1000'
+        }),
+        
+        # Add this before the main container div
+        html.Div(id='_refresh', children=str(datetime.now()), style={'display': 'none'}),
+        
         # Header
         html.H1('Graph DPO Transformation Tool', 
                 style={'textAlign': 'center', 'color': '#2C3E50', 'marginBottom': '30px'}),
@@ -149,13 +165,30 @@ def create_layout(initial_rules=None):
             html.Div([
                 html.H3('Available Rules', style={'color': '#34495E', 'marginBottom': '10px'}),
                 html.Div(id='rule-list', 
-                         children=initial_rule_list_children,
+                         children=[],
                          style={
                             'border': '1px solid #ddd',
                             'borderRadius': '4px',
                             'padding': '10px',
                             'minHeight': '50px'
                          }),
+            ], style={'marginBottom': '20px'}),
+
+            # Add this to the layout function after the rule list section
+            html.Div([
+                html.H3('Saved Rules', style={'color': '#34495E', 'marginBottom': '10px'}),
+                html.Div(
+                    id='saved-rules-list',
+                    children=load_saved_rules_list(),  # Initial load of saved rules
+                    style={
+                        'border': '1px solid #ddd',
+                        'borderRadius': '4px',
+                        'padding': '10px',
+                        'minHeight': '50px',
+                        'maxHeight': '300px',
+                        'overflowY': 'auto'
+                    }
+                ),
             ], style={'marginBottom': '20px'}),
 
             # Rule creation area
@@ -166,6 +199,8 @@ def create_layout(initial_rules=None):
                             style={**button_style, 'backgroundColor': blue}),
                     html.Button('Finalize Rule', id='finalize-rule-button', n_clicks=0, 
                             style={**button_style, 'backgroundColor': blue}),
+                    html.Button('Save Rule', id='save-rule-button', n_clicks=0, 
+                            style={**button_style, 'backgroundColor': '#2ECC71'}),
                     html.Button('Apply Rules', id='apply-rules-button', n_clicks=0, 
                             style={**button_style, 'backgroundColor': blue}),
                 ], style={'textAlign': 'center', 'marginBottom': '20px'}),
@@ -277,6 +312,6 @@ def create_layout(initial_rules=None):
 
             # Storage
             dcc.Store(id='current-rule', data={}),
-            dcc.Store(id='rules-store', data=initial_rules or []),
+            dcc.Store(id='rules-store', data=[]),
         ], style=container_style)
     ])
