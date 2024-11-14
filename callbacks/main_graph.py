@@ -1,8 +1,12 @@
 import dash
 from dash.dependencies import Input, Output, State, ALL
+from datetime import datetime
+import json
+import base64
 
 from classes import GraphManager
-from utils import get_default_graph_layout
+from utils.layout import get_default_graph_layout
+from utils.file_operations import save_graph_to_file
 
 def register_main_graph_callbacks(app):
     @app.callback(
@@ -47,3 +51,53 @@ def register_main_graph_callbacks(app):
         if ctx.triggered:
             return get_default_graph_layout()
         return dash.no_update
+    
+    @app.callback(
+        Output('save-graph-button', 'n_clicks'),
+        Input('save-graph-button', 'n_clicks'),
+        State('main-graph', 'elements'),
+        prevent_initial_call=True
+    )
+    def save_graph(n_clicks, elements):
+        if n_clicks > 0:
+            graph_data = {
+                'elements': elements,
+                'timestamp': datetime.now().isoformat()
+            }
+            filepath = save_graph_to_file(graph_data)
+            print(f"Graph saved to: {filepath}")
+        return 0  # Reset n_clicks
+    
+    # @app.callback(
+    #     Output('graph-upload', 'contents'),
+    #     Input('load-graph-button', 'n_clicks'),
+    #     prevent_initial_call=True
+    # )
+    # def trigger_upload(n_clicks):
+    #     if n_clicks:
+    #         # Return an empty string to trigger the upload dialog
+    #         return ''
+    #     return dash.no_update
+    
+    @app.callback(
+        Output('main-graph', 'elements', allow_duplicate=True),
+        Input('graph-upload', 'contents'),
+        prevent_initial_call=True
+    )
+    def load_graph(contents):
+        if contents is None:
+            return dash.no_update
+        
+        try:
+            # Remove the data URL prefix (e.g., "data:application/json;base64,")
+            content_type, content_string = contents.split(',')
+            decoded = base64.b64decode(content_string)
+            graph_data = json.loads(decoded)
+            
+            # Create a GraphManager instance to validate the data
+            graph_manager = GraphManager.from_dict(graph_data)
+            return graph_manager.elements
+            
+        except Exception as e:
+            print(f'Error loading graph: {e}')
+            return dash.no_update

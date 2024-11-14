@@ -1,4 +1,3 @@
-
 import dash
 from dash import html, dcc
 import dash_cytoscape as cyto
@@ -10,6 +9,7 @@ import uuid
 
 from classes import GraphManager, RuleManager
 from dpo import match_subgraph, apply_dpo_rule, apply_rule_parallel
+from utils.file_operations import save_rule_to_file, load_rules_from_directory
 
 def register_rule_callbacks(app):
     @app.callback(
@@ -27,6 +27,11 @@ def register_rule_callbacks(app):
         if n_clicks > 0:
             current_rule_data_copy = deepcopy(current_rule_data)
             rules.append(current_rule_data_copy)
+            
+            # Save rule to file
+            filepath = save_rule_to_file(current_rule_data_copy)
+            print(f"Rule saved to: {filepath}")
+            
             # Create container div for rule buttons
             rule_container = html.Div([
                 html.Button(
@@ -35,7 +40,7 @@ def register_rule_callbacks(app):
                     style={'margin': '5px', 'padding': '5px 10px'}
                 ),
                 html.Button(
-                    "✕",  # Using "✕" as delete symbol
+                    "✕",
                     id={'type': 'remove-rule-button', 'index': current_rule_data_copy['id']},
                     style={
                         'margin': '5px',
@@ -48,7 +53,6 @@ def register_rule_callbacks(app):
                 )
             ], style={'display': 'inline-block'})
             
-            # Initialize or append to rule list
             rule_list_children = (rule_list_children or []) + [rule_container]
             current_rule_data['id'] = str(uuid.uuid4())
             return rules, rule_list_children, current_rule_data

@@ -2,9 +2,9 @@ import dash
 from dash import html, dcc
 import dash_cytoscape as cyto
 
-from utils import get_default_graph_layout
+from utils.layout import get_default_graph_layout
 
-def create_layout():
+def create_layout(initial_rules=None):
     blue = '#87CEEB'
 
     # Define common button styles
@@ -19,6 +19,31 @@ def create_layout():
         'fontSize': '14px',
         'transition': 'background-color 0.3s'
     }
+
+    # Create initial rule list children
+    initial_rule_list_children = []
+    if initial_rules:
+        for rule in initial_rules:
+            rule_container = html.Div([
+                html.Button(
+                    f"Rule {len(initial_rule_list_children) + 1}", 
+                    id={'type': 'rule-button', 'index': rule['id']},
+                    style={'margin': '5px', 'padding': '5px 10px'}
+                ),
+                html.Button(
+                    "✕",
+                    id={'type': 'remove-rule-button', 'index': rule['id']},
+                    style={
+                        'margin': '5px',
+                        'padding': '5px 10px',
+                        'backgroundColor': '#ff4444',
+                        'color': 'white',
+                        'border': 'none',
+                        'borderRadius': '3px'
+                    }
+                )
+            ], style={'display': 'inline-block'})
+            initial_rule_list_children.append(rule_container)
 
     # Define container styles
     container_style = {
@@ -104,18 +129,33 @@ def create_layout():
                 html.Button('Remove Selected', id='remove-selected-button', n_clicks=0, 
                            style={**button_style, 'backgroundColor': '#E74C3C'}),
                 html.Button('Reset View', id='reset-view-button', n_clicks=0, style=button_style),
+                html.Div([
+                    html.Button('Save Graph', id='save-graph-button', n_clicks=0, 
+                            style={**button_style, 'backgroundColor': '#2ECC71'}),
+                    dcc.Upload(
+                        id='graph-upload',
+                        children=[
+                            html.Div([
+                                html.Button('Load Graph', style={**button_style, 'backgroundColor': '#3498DB'}),
+                            ]),
+                        ],
+                        accept='application/json'
+                    ),
+                ])
             ], style={'textAlign': 'center', 'marginBottom': '20px'}),
 
 
             # Rule list section
             html.Div([
                 html.H3('Available Rules', style={'color': '#34495E', 'marginBottom': '10px'}),
-                html.Div(id='rule-list', style={
-                    'border': '1px solid #ddd',
-                    'borderRadius': '4px',
-                    'padding': '10px',
-                    'minHeight': '50px'
-                }),
+                html.Div(id='rule-list', 
+                         children=initial_rule_list_children,
+                         style={
+                            'border': '1px solid #ddd',
+                            'borderRadius': '4px',
+                            'padding': '10px',
+                            'minHeight': '50px'
+                         }),
             ], style={'marginBottom': '20px'}),
 
             # Rule creation area
@@ -237,6 +277,6 @@ def create_layout():
 
             # Storage
             dcc.Store(id='current-rule', data={}),
-            dcc.Store(id='rules-store', data=[]),
+            dcc.Store(id='rules-store', data=initial_rules or []),
         ], style=container_style)
     ])

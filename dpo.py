@@ -22,6 +22,19 @@ def match_subgraph(host_graph, lhs_graph):
     print(l)
     return l
 
+def match_subgraph_persist_node_id(host_graph, lhs_graph):
+    # Create a base mapping where nodes must match by ID
+    node_match = lambda n1, n2: n1 == n2
+    matcher = nx.algorithms.isomorphism.GraphMatcher(host_graph, lhs_graph, node_match=node_match)
+    
+    # Get matches and invert the mapping (host->lhs to lhs->host)
+    matches = [{v: k for k, v in match.items()} for match in matcher.subgraph_isomorphisms_iter()]
+    
+    # Filter matches to only keep those where node IDs are identical
+    valid_matches = [match for match in matches if all(k == v for k, v in match.items())]
+    
+    return valid_matches
+
 def apply_dpo_rule(host_graph_manager, rule_manager, match):
     """
     Apply a single DPO rule to the host graph.
@@ -159,7 +172,7 @@ def apply_rule_parallel(host_graph_manager, rule_manager):
         Number of successful parallel applications
     """
     # Find all possible matches
-    matches = match_subgraph(host_graph_manager.graph, rule_manager.lhs.graph)
+    matches = match_subgraph_persist_node_id(host_graph_manager.graph, rule_manager.lhs.graph)
     if not matches:
         return 0
 

@@ -2,7 +2,7 @@ import dash
 from dash.dependencies import Input, Output, State, ALL
 
 from classes import GraphManager, RuleManager
-from utils import get_default_graph_layout
+from utils.layout import get_default_graph_layout
 
 def register_rule_creation_graphs_callbacks(app):
     @app.callback(
