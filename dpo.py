@@ -60,11 +60,9 @@ def apply_dpo_rule(host_graph_manager, rule_manager, match):
         R = rule_manager.rhs.graph
 
         # 1. Check gluing condition
-        # Identify nodes that would be dangling
         nodes_to_remove = set(n for n in L.nodes() if n not in K.nodes())
         for node in nodes_to_remove:
             matched_node = match[node]
-            # Check for dangling edges
             neighbors = set(G.neighbors(matched_node))
             matched_l_neighbors = {match[n] for n in L.neighbors(node) if n in match}
             if neighbors - matched_l_neighbors:
@@ -76,12 +74,16 @@ def apply_dpo_rule(host_graph_manager, rule_manager, match):
         edges_to_remove = set(L.edges()) - set(K.edges())
         for edge in edges_to_remove:
             source, target = match[edge[0]], match[edge[1]]
+            
+            # Check and remove edge in both directions
             if G.has_edge(source, target):
                 G.remove_edge(source, target)
-                edge_id = f"{source}-{target}"
+                # Try both directions when removing from elements list
+                edge_id_forward = f"{source}-{target}"
+                edge_id_reverse = f"{target}-{source}"
                 host_graph_manager.elements = [
                     e for e in host_graph_manager.elements 
-                    if e['data'].get('id') != edge_id
+                    if e['data'].get('id') not in [edge_id_forward, edge_id_reverse]
                 ]
 
         # Remove nodes
@@ -112,6 +114,7 @@ def apply_dpo_rule(host_graph_manager, rule_manager, match):
             source = new_node_mapping.get(edge[0], match.get(edge[0], edge[0]))
             target = new_node_mapping.get(edge[1], match.get(edge[1], edge[1]))
             
+            print("edge to addd:", source, target)
             if not G.has_edge(source, target):
                 edge_id = f"{source}-{target}"
                 G.add_edge(source, target)
@@ -122,6 +125,8 @@ def apply_dpo_rule(host_graph_manager, rule_manager, match):
                         'target': target
                     }
                 })
+        
+        print("po dodaniu", G.edges())
 
         return True
 
